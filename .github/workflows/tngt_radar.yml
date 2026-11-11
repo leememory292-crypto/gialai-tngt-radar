@@ -1,0 +1,42 @@
+name: Gia Lai Traffic Accident Radar
+
+on:
+  schedule:
+    # Chạy mỗi 2 tiếng một lần trong khung 06:00 - 21:00 VN (GMT+7)
+    # Giờ UTC tương ứng: 23:00 (hôm trước), 01:00, 03:00, 05:00, 07:00, 09:00, 11:00, 13:00, 14:00
+    - cron: '0 23,1,3,5,7,9,11,13,14 * * *'
+  workflow_dispatch: # Cho phép bấm chạy kiểm tra thủ công
+
+permissions:
+  contents: write
+
+jobs:
+  run-radar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Execute Radar Scraper
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TARGET_EMAIL: "tngt@googlegroups.com"
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python scripts/radar_tngt.py
+
+      - name: Commit and Push History
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/history.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(radar): update tngt alert history [skip ci]" && git push)
